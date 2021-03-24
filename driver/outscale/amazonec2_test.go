@@ -219,8 +219,8 @@ func TestGetRegionZoneForDefaultEndpoint(t *testing.T) {
 	options := &commandstest.FakeFlagger{
 		Data: map[string]interface{}{
 			"name":            "test",
-			"amazonec2-region": "us-east-1",
-			"amazonec2-zone":   "e",
+			"outscale-region": "us-east-2",
+			"outscale-zone":   "a",
 		},
 	}
 
@@ -228,7 +228,7 @@ func TestGetRegionZoneForDefaultEndpoint(t *testing.T) {
 
 	regionZone := driver.getRegionZone()
 
-	assert.Equal(t, "us-east-1e", regionZone)
+	assert.Equal(t, "us-east-2a", regionZone)
 	assert.NoError(t, err)
 }
 
@@ -239,8 +239,8 @@ func TestGetRegionZoneForCustomEndpoint(t *testing.T) {
 		Data: map[string]interface{}{
 			"name":               "test",
 			"amazonec2-endpoint": "https://someurl",
-			"amazonec2-region":   "custom-endpoint",
-			"amazonec2-zone":     "custom-zone",
+			"outscale-region":   "custom-endpoint",
+			"outscale-zone":     "custom-zone",
 		},
 	}
 
@@ -273,8 +273,8 @@ func TestAwsCredentialsAreRequired(t *testing.T) {
 	options := &commandstest.FakeFlagger{
 		Data: map[string]interface{}{
 			"name":             "test",
-			"amazonec2-region": "us-east-1",
-			"amazonec2-zone":   "e",
+			"outscale-region": "us-east-2",
+			"outscale-zone":   "a",
 		},
 	}
 
@@ -288,8 +288,8 @@ func TestValidAwsCredentialsAreAccepted(t *testing.T) {
 	options := &commandstest.FakeFlagger{
 		Data: map[string]interface{}{
 			"name":             "test",
-			"amazonec2-region": "us-east-1",
-			"amazonec2-zone":   "e",
+			"outscale-region": "us-east-2",
+			"outscale-zone":   "a",
 		},
 	}
 
@@ -303,9 +303,9 @@ func TestEndpointIsMandatoryWhenSSLDisabled(t *testing.T) {
 	options := &commandstest.FakeFlagger{
 		Data: map[string]interface{}{
 			"name":                         "test",
-			"amazonec2-access-key":         "foobar",
-			"amazonec2-region":             "us-east-1",
-			"amazonec2-zone":               "e",
+			"outscale-access-key":         "foobar",
+			"outscale-region":             "us-east-2",
+			"outscale-zone":               "a",
 			"amazonec2-insecure-transport": true,
 		},
 	}

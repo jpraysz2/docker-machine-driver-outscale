@@ -68,7 +68,7 @@ var (
 	nodePorts                            = []int64{30000, 32767}
 	calicoPort                           = 179
 	errorNoPrivateSSHKey                 = errors.New("using --amazonec2-keypair-name also requires --amazonec2-ssh-keypath")
-	errorMissingCredentials              = errors.New("amazonec2 driver requires AWS credentials configured with the --amazonec2-access-key and --amazonec2-secret-key options, environment variables, ~/.aws/credentials, or an instance role")
+	errorMissingCredentials              = errors.New("amazonec2 driver requires AWS credentials configured with the --outscale-access-key and --outscale-secret-key options, environment variables, ~/.aws/credentials, or an instance role")
 	errorNoVPCIdFound                    = errors.New("amazonec2 driver requires either the --outscale-subnet-id or --outscale-vpc-id option or an AWS Account with a default vpc-id")
 	errorNoSubnetsFound                  = errors.New("The desired subnet could not be located in this region. Is '--outscale-subnet-id' or AWS_SUBNET_ID configured correctly?")
 	errorDisableSSLWithoutCustomEndpoint = errors.New("using --amazonec2-insecure-transport also requires --amazonec2-endpoint")
@@ -148,12 +148,12 @@ type clientFactory interface {
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
-			Name:   "amazonec2-access-key",
+			Name:   "outscale-access-key",
 			Usage:  "AWS Access Key",
 			EnvVar: "AWS_ACCESS_KEY_ID",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-secret-key",
+			Name:   "outscale-secret-key",
 			Usage:  "AWS Secret Key",
 			EnvVar: "AWS_SECRET_ACCESS_KEY",
 		},
@@ -238,7 +238,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "AWS_INSTANCE_PROFILE",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-ssh-user",
+			Name:   "outscale-ssh-user",
 			Usage:  "Set the name of the ssh user",
 			Value:  defaultSSHUser,
 			EnvVar: "AWS_SSH_USER",
@@ -388,8 +388,8 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		image = regionDetails[region].AmiId
 	}
 
-	d.AccessKey = flags.String("amazonec2-access-key")
-	d.SecretKey = flags.String("amazonec2-secret-key")
+	d.AccessKey = flags.String("outscale-access-key")
+	d.SecretKey = flags.String("outscale-secret-key")
 	d.SessionToken = flags.String("amazonec2-session-token")
 	d.Region = region
 	d.AMI = image
@@ -408,7 +408,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.RootSize = int64(flags.Int("amazonec2-root-size"))
 	d.VolumeType = flags.String("outscale-volume-type")
 	d.IamInstanceProfile = flags.String("amazonec2-iam-instance-profile")
-	d.SSHUser = flags.String("amazonec2-ssh-user")
+	d.SSHUser = flags.String("outscale-ssh-user")
 	d.SSHPort = 22
 	d.PrivateIPOnly = flags.Bool("amazonec2-private-address-only")
 	d.UsePrivateIP = flags.Bool("amazonec2-use-private-address")
