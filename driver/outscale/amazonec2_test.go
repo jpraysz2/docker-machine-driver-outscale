@@ -219,8 +219,8 @@ func TestGetRegionZoneForDefaultEndpoint(t *testing.T) {
 	options := &commandstest.FakeFlagger{
 		Data: map[string]interface{}{
 			"name":            "test",
-			"outscale-region": "us-east-1",
-			"outscale-zone":   "e",
+			"amazonec2-region": "us-east-1",
+			"amazonec2-zone":   "e",
 		},
 	}
 
