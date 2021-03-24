@@ -34,15 +34,15 @@ const (
 	ipRange                     = "0.0.0.0/0"
 	machineSecurityGroupName    = "rancher-nodes"
 	machineTag                  = "rancher-nodes"
-	defaultAmiId                = "ami-c60b90d1"
-	defaultRegion               = "us-east-1"
-	defaultInstanceType         = "t2.micro"
+	defaultAmiId                = "ami-e90bc65c"
+	defaultRegion               = "us-east-2"
+	defaultInstanceType         = "m4.2xlarge"
 	defaultRootSize             = 16
 	defaultVolumeType           = "gp2"
 	defaultZone                 = "a"
 	defaultSecurityGroup        = machineSecurityGroupName
-	defaultSSHUser              = "ubuntu"
-	defaultSpotPrice            = "0.50"
+	defaultSSHUser              = "outscale"
+	defaultSpotPrice            = ""
 	defaultBlockDurationMinutes = 0
 	charset                     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
@@ -69,8 +69,8 @@ var (
 	calicoPort                           = 179
 	errorNoPrivateSSHKey                 = errors.New("using --amazonec2-keypair-name also requires --amazonec2-ssh-keypath")
 	errorMissingCredentials              = errors.New("amazonec2 driver requires AWS credentials configured with the --amazonec2-access-key and --amazonec2-secret-key options, environment variables, ~/.aws/credentials, or an instance role")
-	errorNoVPCIdFound                    = errors.New("amazonec2 driver requires either the --amazonec2-subnet-id or --amazonec2-vpc-id option or an AWS Account with a default vpc-id")
-	errorNoSubnetsFound                  = errors.New("The desired subnet could not be located in this region. Is '--amazonec2-subnet-id' or AWS_SUBNET_ID configured correctly?")
+	errorNoVPCIdFound                    = errors.New("amazonec2 driver requires either the --outscale-subnet-id or --outscale-vpc-id option or an AWS Account with a default vpc-id")
+	errorNoSubnetsFound                  = errors.New("The desired subnet could not be located in this region. Is '--outscale-subnet-id' or AWS_SUBNET_ID configured correctly?")
 	errorDisableSSLWithoutCustomEndpoint = errors.New("using --amazonec2-insecure-transport also requires --amazonec2-endpoint")
 	errorReadingUserData                 = errors.New("unable to read --amazonec2-userdata file")
 	errorInvalidValueForHTTPToken        = errors.New("httpToken must be either optional or required")
@@ -163,29 +163,29 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "AWS_SESSION_TOKEN",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-ami",
+			Name:   "outscale-ami",
 			Usage:  "AWS machine image",
 			EnvVar: "AWS_AMI",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-region",
+			Name:   "outscale-region",
 			Usage:  "AWS region",
 			Value:  defaultRegion,
 			EnvVar: "AWS_DEFAULT_REGION",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-vpc-id",
+			Name:   "outscale-vpc-id",
 			Usage:  "AWS VPC id",
 			EnvVar: "AWS_VPC_ID",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-zone",
+			Name:   "outscale-zone",
 			Usage:  "AWS zone for instance (i.e. a,b,c,d,e)",
 			Value:  defaultZone,
 			EnvVar: "AWS_ZONE",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-subnet-id",
+			Name:   "outscale-subnet-id",
 			Usage:  "AWS VPC subnet id",
 			EnvVar: "AWS_SUBNET_ID",
 		},
@@ -210,7 +210,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "AWS_TAGS",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-instance-type",
+			Name:   "outscale-instance-type",
 			Usage:  "AWS instance type",
 			Value:  defaultInstanceType,
 			EnvVar: "AWS_INSTANCE_TYPE",
@@ -227,7 +227,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "AWS_ROOT_SIZE",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-volume-type",
+			Name:   "outscale-volume-type",
 			Usage:  "Amazon EBS volume type",
 			Value:  defaultVolumeType,
 			EnvVar: "AWS_VOLUME_TYPE",
@@ -378,12 +378,12 @@ func (d *Driver) getClient() Ec2Client {
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.Endpoint = flags.String("amazonec2-endpoint")
 
-	region, err := validateAwsRegion(flags.String("amazonec2-region"))
+	region, err := validateAwsRegion(flags.String("outscale-region"))
 	if err != nil && d.Endpoint == "" {
 		return err
 	}
 
-	image := flags.String("amazonec2-ami")
+	image := flags.String("outscale-ami")
 	if len(image) == 0 {
 		image = regionDetails[region].AmiId
 	}
@@ -396,17 +396,17 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.RequestSpotInstance = flags.Bool("amazonec2-request-spot-instance")
 	d.SpotPrice = flags.String("amazonec2-spot-price")
 	d.BlockDurationMinutes = int64(flags.Int("amazonec2-block-duration-minutes"))
-	d.InstanceType = flags.String("amazonec2-instance-type")
-	d.VpcId = flags.String("amazonec2-vpc-id")
-	d.SubnetId = flags.String("amazonec2-subnet-id")
+	d.InstanceType = flags.String("outscale-instance-type")
+	d.VpcId = flags.String("outscale-vpc-id")
+	d.SubnetId = flags.String("outscale-subnet-id")
 	d.SecurityGroupNames = flags.StringSlice("amazonec2-security-group")
 	d.SecurityGroupReadOnly = flags.Bool("amazonec2-security-group-readonly")
 	d.Tags = flags.String("amazonec2-tags")
-	zone := flags.String("amazonec2-zone")
+	zone := flags.String("outscale-zone")
 	d.Zone = zone[:]
 	d.DeviceName = flags.String("amazonec2-device-name")
 	d.RootSize = int64(flags.Int("amazonec2-root-size"))
-	d.VolumeType = flags.String("amazonec2-volume-type")
+	d.VolumeType = flags.String("outscale-volume-type")
 	d.IamInstanceProfile = flags.String("amazonec2-iam-instance-profile")
 	d.SSHUser = flags.String("amazonec2-ssh-user")
 	d.SSHPort = 22
