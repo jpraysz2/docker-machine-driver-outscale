@@ -149,12 +149,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			Name:   "outscale-access-key",
-			Usage:  "AWS Access Key",
+			Usage:  "Outscale Access Key",
 			EnvVar: "AWS_ACCESS_KEY_ID",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-secret-key",
-			Usage:  "AWS Secret Key",
+			Usage:  "Outscale Secret Key",
 			EnvVar: "AWS_SECRET_ACCESS_KEY",
 		},
 		mcnflag.StringFlag{
@@ -164,29 +164,30 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-ami",
-			Usage:  "AWS machine image",
+			Usage:  "Outscale machine image",
+			value:  defaultAmiId
 			EnvVar: "AWS_AMI",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-region",
-			Usage:  "AWS region",
+			Usage:  "Outscale region",
 			Value:  defaultRegion,
 			EnvVar: "AWS_DEFAULT_REGION",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-vpc-id",
-			Usage:  "AWS VPC id",
+			Usage:  "Outscale VPC id",
 			EnvVar: "AWS_VPC_ID",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-zone",
-			Usage:  "AWS zone for instance (i.e. a,b,c,d,e)",
+			Usage:  "Outscale zone for instance (i.e. a,b,c,d,e)",
 			Value:  defaultZone,
 			EnvVar: "AWS_ZONE",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-subnet-id",
-			Usage:  "AWS VPC subnet id",
+			Usage:  "Outscale VPC subnet id",
 			EnvVar: "AWS_SUBNET_ID",
 		},
 		mcnflag.BoolFlag{
@@ -211,7 +212,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-instance-type",
-			Usage:  "AWS instance type",
+			Usage:  "Outscale instance type",
 			Value:  defaultInstanceType,
 			EnvVar: "AWS_INSTANCE_TYPE",
 		},
@@ -221,14 +222,14 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "AWS_DEVICE_NAME",
 		},
 		mcnflag.IntFlag{
-			Name:   "amazonec2-root-size",
-			Usage:  "AWS root disk size (in GB)",
+			Name:   "outscale-root-size",
+			Usage:  "Outscale root disk size (in GB)",
 			Value:  defaultRootSize,
 			EnvVar: "AWS_ROOT_SIZE",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-volume-type",
-			Usage:  "Amazon EBS volume type",
+			Usage:  "Outscale volume type",
 			Value:  defaultVolumeType,
 			EnvVar: "AWS_VOLUME_TYPE",
 		},
@@ -405,7 +406,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	zone := flags.String("outscale-zone")
 	d.Zone = zone[:]
 	d.DeviceName = flags.String("amazonec2-device-name")
-	d.RootSize = int64(flags.Int("amazonec2-root-size"))
+	d.RootSize = int64(flags.Int("outscale-root-size"))
 	d.VolumeType = flags.String("outscale-volume-type")
 	d.IamInstanceProfile = flags.String("amazonec2-iam-instance-profile")
 	d.SSHUser = flags.String("outscale-ssh-user")
