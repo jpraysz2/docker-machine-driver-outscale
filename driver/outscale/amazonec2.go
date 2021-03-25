@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	driverName                  = "outscale-cloud"
+	driverName                  = "outscale"
 	ipRange                     = "0.0.0.0/0"
 	machineSecurityGroupName    = "rancher-nodes"
 	machineTag                  = "rancher-nodes"
