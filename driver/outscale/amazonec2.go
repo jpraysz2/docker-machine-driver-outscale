@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
+	// "github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/docker/machine/drivers/driverutil"
@@ -49,7 +49,7 @@ const (
 
 const (
 	keypairNotFoundCode             = "InvalidKeyPair.NotFound"
-	spotInstanceRequestNotFoundCode = "InvalidSpotInstanceRequestID.NotFound"
+	//spotInstanceRequestNotFoundCode = "InvalidSpotInstanceRequestID.NotFound"
 )
 
 var (
@@ -67,12 +67,12 @@ var (
 	kubeProxyPorts                       = []int64{10256, 10256}
 	nodePorts                            = []int64{30000, 32767}
 	calicoPort                           = 179
-	errorNoPrivateSSHKey                 = errors.New("using --amazonec2-keypair-name also requires --amazonec2-ssh-keypath")
-	errorMissingCredentials              = errors.New("amazonec2 driver requires AWS credentials configured with the --outscale-access-key and --outscale-secret-key options, environment variables, ~/.aws/credentials, or an instance role")
-	errorNoVPCIdFound                    = errors.New("amazonec2 driver requires either the --outscale-subnet-id or --outscale-vpc-id option or an AWS Account with a default vpc-id")
+	//errorNoPrivateSSHKey                 = errors.New("using --amazonec2-keypair-name also requires --amazonec2-ssh-keypath")
+	errorMissingCredentials              = errors.New("outscale driver requires AWS credentials configured with the --outscale-access-key and --outscale-secret-key options, environment variables, ~/.aws/credentials, or an instance role")
+	errorNoVPCIdFound                    = errors.New("outscale driver requires either the --outscale-subnet-id or --outscale-vpc-id option or an AWS Account with a default vpc-id")
 	errorNoSubnetsFound                  = errors.New("The desired subnet could not be located in this region. Is '--outscale-subnet-id' or AWS_SUBNET_ID configured correctly?")
-	errorDisableSSLWithoutCustomEndpoint = errors.New("using --amazonec2-insecure-transport also requires --outscale-endpoint")
-	errorReadingUserData                 = errors.New("unable to read --amazonec2-userdata file")
+	//errorDisableSSLWithoutCustomEndpoint = errors.New("using --amazonec2-insecure-transport also requires --outscale-endpoint")
+	errorReadingUserData                 = errors.New("unable to read --outscale-userdata file")
 	errorInvalidValueForHTTPToken        = errors.New("httpToken must be either optional or required")
 	errorInvalidValueForHTTPEndpoint     = errors.New("httpEndpoint must be either enabled or disabled")
 )
@@ -116,8 +116,8 @@ type Driver struct {
 	Zone                    string
 	keyPath                 string
 	RequestSpotInstance     bool
-	SpotPrice               string
-	BlockDurationMinutes    int64
+	//SpotPrice               string
+	//BlockDurationMinutes    int64
 	PrivateIPOnly           bool
 	UsePrivateIP            bool
 	UseEbsOptimizedInstance bool
@@ -157,11 +157,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Outscale Secret Key",
 			EnvVar: "AWS_SECRET_ACCESS_KEY",
 		},
-		mcnflag.StringFlag{
-			Name:   "amazonec2-session-token",
-			Usage:  "AWS Session Token",
-			EnvVar: "AWS_SESSION_TOKEN",
-		},
+		// mcnflag.StringFlag{
+		// 	Name:   "amazonec2-session-token",
+		// 	Usage:  "AWS Session Token",
+		// 	EnvVar: "AWS_SESSION_TOKEN",
+		// },
 		mcnflag.StringFlag{
 			Name:   "outscale-ami",
 			Usage:  "Outscale machine image",
@@ -190,24 +190,24 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Outscale VPC subnet id",
 			EnvVar: "AWS_SUBNET_ID",
 		},
-		mcnflag.BoolFlag{
-			Name:   "amazonec2-security-group-readonly",
-			Usage:  "Skip adding default rules to security groups",
-			EnvVar: "AWS_SECURITY_GROUP_READONLY",
-		},
+		// mcnflag.BoolFlag{
+		// 	Name:   "amazonec2-security-group-readonly",
+		// 	Usage:  "Skip adding default rules to security groups",
+		// 	EnvVar: "AWS_SECURITY_GROUP_READONLY",
+		// },
 		mcnflag.StringSliceFlag{
 			Name:   "outscale-security-group",
-			Usage:  "AWS VPC security group",
+			Usage:  "Outscale VPC security group",
 			Value:  []string{defaultSecurityGroup},
 			EnvVar: "AWS_SECURITY_GROUP",
 		},
-		mcnflag.StringSliceFlag{
-			Name:  "amazonec2-open-port",
-			Usage: "Make the specified port number accessible from the Internet",
-		},
+		// mcnflag.StringSliceFlag{
+		// 	Name:  "amazonec2-open-port",
+		// 	Usage: "Make the specified port number accessible from the Internet",
+		// },
 		mcnflag.StringFlag{
-			Name:   "amazonec2-tags",
-			Usage:  "AWS Tags (e.g. key1,value1,key2,value2)",
+			Name:   "outscale-tags",
+			Usage:  "Outscale Tags (e.g. key1,value1,key2,value2)",
 			EnvVar: "AWS_TAGS",
 		},
 		mcnflag.StringFlag{
@@ -217,8 +217,8 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "AWS_INSTANCE_TYPE",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-device-name",
-			Usage:  "AWS root device name",
+			Name:   "outscale-device-name",
+			Usage:  "Outscale root device name",
 			EnvVar: "AWS_DEVICE_NAME",
 		},
 		mcnflag.IntFlag{
@@ -234,8 +234,8 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "AWS_VOLUME_TYPE",
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-iam-instance-profile",
-			Usage:  "AWS IAM Instance Profile",
+			Name:   "outscale-iam-instance-profile",
+			Usage:  "Outscale IAM Instance Profile",
 			EnvVar: "AWS_INSTANCE_PROFILE",
 		},
 		mcnflag.StringFlag{
@@ -244,85 +244,85 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Value:  defaultSSHUser,
 			EnvVar: "AWS_SSH_USER",
 		},
+		// mcnflag.BoolFlag{
+		// 	Name:  "amazonec2-request-spot-instance",
+		// 	Usage: "Set this flag to request spot instance",
+		// },
+		// mcnflag.StringFlag{
+		// 	Name:  "amazonec2-spot-price",
+		// 	Usage: "AWS spot instance bid price (in dollar)",
+		// },
+		// mcnflag.IntFlag{
+		// 	Name:  "amazonec2-block-duration-minutes",
+		// 	Usage: "AWS spot instance duration in minutes (60, 120, 180, 240, 300, or 360)",
+		// },
 		mcnflag.BoolFlag{
-			Name:  "amazonec2-request-spot-instance",
-			Usage: "Set this flag to request spot instance",
-		},
-		mcnflag.StringFlag{
-			Name:  "amazonec2-spot-price",
-			Usage: "AWS spot instance bid price (in dollar)",
-		},
-		mcnflag.IntFlag{
-			Name:  "amazonec2-block-duration-minutes",
-			Usage: "AWS spot instance duration in minutes (60, 120, 180, 240, 300, or 360)",
-		},
-		mcnflag.BoolFlag{
-			Name:  "amazonec2-private-address-only",
+			Name:  "outscale-private-address-only",
 			Usage: "Only use a private IP address",
 		},
 		mcnflag.BoolFlag{
-			Name:  "amazonec2-use-private-address",
+			Name:  "outscale-use-private-address",
 			Usage: "Force the usage of private IP address",
 		},
+		// mcnflag.BoolFlag{
+		// 	Name:  "amazonec2-monitoring",
+		// 	Usage: "Set this flag to enable CloudWatch monitoring",
+		// },
 		mcnflag.BoolFlag{
-			Name:  "amazonec2-monitoring",
-			Usage: "Set this flag to enable CloudWatch monitoring",
-		},
-		mcnflag.BoolFlag{
-			Name:  "amazonec2-use-ebs-optimized-instance",
+			Name:  "outscale-use-ebs-optimized-instance",
 			Usage: "Create an EBS optimized instance",
 		},
-		mcnflag.StringFlag{
-			Name:   "amazonec2-ssh-keypath",
-			Usage:  "SSH Key for Instance",
-			EnvVar: "AWS_SSH_KEYPATH",
-		},
-		mcnflag.StringFlag{
-			Name:   "amazonec2-keypair-name",
-			Usage:  "AWS keypair to use; requires --amazonec2-ssh-keypath",
-			EnvVar: "AWS_KEYPAIR_NAME",
-		},
-		mcnflag.IntFlag{
-			Name:  "amazonec2-retries",
-			Usage: "Set retry count for recoverable failures (use -1 to disable)",
-			Value: 5,
-		},
+		// mcnflag.StringFlag{
+		// 	Name:   "amazonec2-ssh-keypath",
+		// 	Usage:  "SSH Key for Instance",
+		// 	EnvVar: "AWS_SSH_KEYPATH",
+		// },
+		// mcnflag.StringFlag{
+		// 	Name:   "amazonec2-keypair-name",
+		// 	Usage:  "AWS keypair to use; requires --amazonec2-ssh-keypath",
+		// 	EnvVar: "AWS_KEYPAIR_NAME",
+		// },
+		// mcnflag.IntFlag{
+		// 	Name:  "amazonec2-retries",
+		// 	Usage: "Set retry count for recoverable failures (use -1 to disable)",
+		// 	Value: 5,
+		// },
 		mcnflag.StringFlag{
 			Name:   "outscale-endpoint",
 			Usage:  "Optional endpoint URL (hostname only or fully qualified URI)",
 			Value:  "https://fcu.us-east-2.outscale.com",
 			EnvVar: "AWS_ENDPOINT",
 		},
-		mcnflag.BoolFlag{
-			Name:   "amazonec2-insecure-transport",
-			Usage:  "Disable SSL when sending requests",
-			EnvVar: "AWS_INSECURE_TRANSPORT",
-		},
+		// mcnflag.BoolFlag{
+		// 	Name:   "amazonec2-insecure-transport",
+		// 	Usage:  "Disable SSL when sending requests",
+		// 	EnvVar: "AWS_INSECURE_TRANSPORT",
+		// },
 		mcnflag.StringFlag{
-			Name:   "amazonec2-userdata",
+			Name:   "outscale-userdata",
 			Usage:  "path to file with cloud-init user data",
 			EnvVar: "AWS_USERDATA",
 		},
-		mcnflag.BoolFlag{
-			Name:   "amazonec2-encrypt-ebs-volume",
-			Usage:  "Encrypt the EBS volume using the AWS Managed CMK",
-			EnvVar: "AWS_ENCRYPT_EBS_VOLUME",
-		},
-		mcnflag.StringFlag{
-			Name:   "amazonec2-kms-key",
-			Usage:  "Custom KMS key using the AWS Managed CMK",
-			EnvVar: "AWS_KMS_KEY",
-		},
-		mcnflag.StringFlag{
-			Name:   "amazonec2-http-endpoint",
-			Usage:  "Enables or disables the HTTP metadata endpoint on your instances",
-			EnvVar: "AWS_HTTP_ENDPOINT",
-		},
-		mcnflag.StringFlag{
-			Name:   "amazonec2-http-tokens",
-			Usage:  "The state of token usage for your instance metadata requests.",
-			EnvVar: "AWS_HTTP_TOKENS",
-		},
+		// mcnflag.BoolFlag{
+		// 	Name:   "amazonec2-encrypt-ebs-volume",
+		// 	Usage:  "Encrypt the EBS volume using the AWS Managed CMK",
+		// 	EnvVar: "AWS_ENCRYPT_EBS_VOLUME",
+		// },
+		// mcnflag.StringFlag{
+		// 	Name:   "amazonec2-kms-key",
+		// 	Usage:  "Custom KMS key using the AWS Managed CMK",
+		// 	EnvVar: "AWS_KMS_KEY",
+		// },
+		// mcnflag.StringFlag{
+		// 	Name:   "amazonec2-http-endpoint",
+		// 	Usage:  "Enables or disables the HTTP metadata endpoint on your instances",
+		// 	EnvVar: "AWS_HTTP_ENDPOINT",
+		// },
+		// mcnflag.StringFlag{
+		// 	Name:   "amazonec2-http-tokens",
+		// 	Usage:  "The state of token usage for your instance metadata requests.",
+		// 	EnvVar: "AWS_HTTP_TOKENS",
+		// },
 	}
 }
 
@@ -389,69 +389,69 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 
 	d.AccessKey = flags.String("outscale-access-key")
 	d.SecretKey = flags.String("outscale-secret-key")
-	d.SessionToken = flags.String("amazonec2-session-token")
+	//d.SessionToken = flags.String("amazonec2-session-token")
 	d.Region = region
 	d.AMI = image
-	d.RequestSpotInstance = flags.Bool("amazonec2-request-spot-instance")
-	d.SpotPrice = flags.String("amazonec2-spot-price")
-	d.BlockDurationMinutes = int64(flags.Int("amazonec2-block-duration-minutes"))
+	//d.RequestSpotInstance = flags.Bool("amazonec2-request-spot-instance")
+	//d.SpotPrice = flags.String("amazonec2-spot-price")
+	//d.BlockDurationMinutes = int64(flags.Int("amazonec2-block-duration-minutes"))
 	d.InstanceType = flags.String("outscale-instance-type")
 	d.VpcId = flags.String("outscale-vpc-id")
 	d.SubnetId = flags.String("outscale-subnet-id")
 	d.SecurityGroupNames = flags.StringSlice("outscale-security-group")
-	d.SecurityGroupReadOnly = flags.Bool("amazonec2-security-group-readonly")
-	d.Tags = flags.String("amazonec2-tags")
+	//d.SecurityGroupReadOnly = flags.Bool("amazonec2-security-group-readonly")
+	d.Tags = flags.String("outscale-tags")
 	zone := flags.String("outscale-zone")
 	d.Zone = zone[:]
-	d.DeviceName = flags.String("amazonec2-device-name")
+	d.DeviceName = flags.String("outscakeamazonec2-device-name")
 	d.RootSize = int64(flags.Int("outscale-root-size"))
 	d.VolumeType = flags.String("outscale-volume-type")
-	d.IamInstanceProfile = flags.String("amazonec2-iam-instance-profile")
+	d.IamInstanceProfile = flags.String("outscale-amazonec2-iam-instance-profile")
 	d.SSHUser = flags.String("outscale-ssh-user")
 	d.SSHPort = 22
-	d.PrivateIPOnly = flags.Bool("amazonec2-private-address-only")
-	d.UsePrivateIP = flags.Bool("amazonec2-use-private-address")
-	d.Monitoring = flags.Bool("amazonec2-monitoring")
-	d.UseEbsOptimizedInstance = flags.Bool("amazonec2-use-ebs-optimized-instance")
-	d.SSHPrivateKeyPath = flags.String("amazonec2-ssh-keypath")
-	d.KeyName = flags.String("amazonec2-keypair-name")
-	d.ExistingKey = flags.String("amazonec2-keypair-name") != ""
+	d.PrivateIPOnly = flags.Bool("outscale-private-address-only")
+	d.UsePrivateIP = flags.Bool("outscale-use-private-address")
+	//d.Monitoring = flags.Bool("amazonec2-monitoring")
+	d.UseEbsOptimizedInstance = flags.Bool("outscale-use-ebs-optimized-instance")
+	//d.SSHPrivateKeyPath = flags.String("amazonec2-ssh-keypath")
+	//d.KeyName = flags.String("amazonec2-keypair-name")
+	//d.ExistingKey = flags.String("amazonec2-keypair-name") != ""
 	d.SetSwarmConfigFromFlags(flags)
-	d.RetryCount = flags.Int("amazonec2-retries")
-	d.OpenPorts = flags.StringSlice("amazonec2-open-port")
-	d.UserDataFile = flags.String("amazonec2-userdata")
-	d.EncryptEbsVolume = flags.Bool("amazonec2-encrypt-ebs-volume")
+	//d.RetryCount = flags.Int("amazonec2-retries")
+	//d.OpenPorts = flags.StringSlice("amazonec2-open-port")
+	d.UserDataFile = flags.String("outscale-userdata")
+	//d.EncryptEbsVolume = flags.Bool("amazonec2-encrypt-ebs-volume")
 
-	httpEndpoint := flags.String("amazonec2-http-endpoint")
-	if httpEndpoint != "" {
-		if httpEndpoint != "disabled" && httpEndpoint != "enabled" {
-			return errorInvalidValueForHTTPEndpoint
-		}
-		d.HttpEndpoint = httpEndpoint
-	}
+	// httpEndpoint := flags.String("amazonec2-http-endpoint")
+	// if httpEndpoint != "" {
+	// 	if httpEndpoint != "disabled" && httpEndpoint != "enabled" {
+	// 		return errorInvalidValueForHTTPEndpoint
+	// 	}
+	// 	d.HttpEndpoint = httpEndpoint
+	// }
 
-	httpTokens := flags.String("amazonec2-http-tokens")
-	if httpTokens != "" {
-		if httpTokens != "optional" && httpTokens != "required" {
-			return errorInvalidValueForHTTPToken
-		}
-		d.HttpTokens = httpTokens
-	}
+	// httpTokens := flags.String("amazonec2-http-tokens")
+	// if httpTokens != "" {
+	// 	if httpTokens != "optional" && httpTokens != "required" {
+	// 		return errorInvalidValueForHTTPToken
+	// 	}
+	// 	d.HttpTokens = httpTokens
+	// }
 
-	kmskeyid := flags.String("amazonec2-kms-key")
-	if kmskeyid != "" {
-		d.kmsKeyId = aws.String(kmskeyid)
-	}
+	// kmskeyid := flags.String("amazonec2-kms-key")
+	// if kmskeyid != "" {
+	// 	d.kmsKeyId = aws.String(kmskeyid)
+	// }
 
-	d.DisableSSL = flags.Bool("amazonec2-insecure-transport")
+	//d.DisableSSL = flags.Bool("amazonec2-insecure-transport")
 
-	if d.DisableSSL && d.Endpoint == "" {
-		return errorDisableSSLWithoutCustomEndpoint
-	}
+	// if d.DisableSSL && d.Endpoint == "" {
+	// 	return errorDisableSSLWithoutCustomEndpoint
+	// }
 
-	if d.KeyName != "" && d.SSHPrivateKeyPath == "" {
-		return errorNoPrivateSSHKey
-	}
+	// if d.KeyName != "" && d.SSHPrivateKeyPath == "" {
+	// 	return errorNoPrivateSSHKey
+	// }
 
 	_, err = d.awsCredentialsFactory().Credentials().Get()
 	if err != nil {
@@ -687,89 +687,89 @@ func (d *Driver) innerCreate() error {
 
 	var instance *ec2.Instance
 
-	if d.RequestSpotInstance {
-		req := ec2.RequestSpotInstancesInput{
-			LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
-				ImageId: &d.AMI,
-				Placement: &ec2.SpotPlacement{
-					AvailabilityZone: &regionZone,
-				},
-				KeyName:           &d.KeyName,
-				InstanceType:      &d.InstanceType,
-				NetworkInterfaces: netSpecs,
-				Monitoring:        &ec2.RunInstancesMonitoringEnabled{Enabled: aws.Bool(d.Monitoring)},
-				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-					Name: &d.IamInstanceProfile,
-				},
-				EbsOptimized:        &d.UseEbsOptimizedInstance,
-				BlockDeviceMappings: bdmList,
-				UserData:            &userdata,
-			},
-			InstanceCount: aws.Int64(1),
-			SpotPrice:     &d.SpotPrice,
-		}
-		if d.BlockDurationMinutes != 0 {
-			req.BlockDurationMinutes = &d.BlockDurationMinutes
-		}
+	// if d.RequestSpotInstance {
+	// 	req := ec2.RequestSpotInstancesInput{
+	// 		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
+	// 			ImageId: &d.AMI,
+	// 			Placement: &ec2.SpotPlacement{
+	// 				AvailabilityZone: &regionZone,
+	// 			},
+	// 			KeyName:           &d.KeyName,
+	// 			InstanceType:      &d.InstanceType,
+	// 			NetworkInterfaces: netSpecs,
+	// 			Monitoring:        &ec2.RunInstancesMonitoringEnabled{Enabled: aws.Bool(d.Monitoring)},
+	// 			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+	// 				Name: &d.IamInstanceProfile,
+	// 			},
+	// 			EbsOptimized:        &d.UseEbsOptimizedInstance,
+	// 			BlockDeviceMappings: bdmList,
+	// 			UserData:            &userdata,
+	// 		},
+	// 		InstanceCount: aws.Int64(1),
+	// 		SpotPrice:     &d.SpotPrice,
+	// 	}
+	// 	if d.BlockDurationMinutes != 0 {
+	// 		req.BlockDurationMinutes = &d.BlockDurationMinutes
+	// 	}
 
-		spotInstanceRequest, err := d.getClient().RequestSpotInstances(&req)
-		if err != nil {
-			return fmt.Errorf("Error request spot instance: %s", err)
-		}
-		d.spotInstanceRequestId = *spotInstanceRequest.SpotInstanceRequests[0].SpotInstanceRequestId
+	// 	spotInstanceRequest, err := d.getClient().RequestSpotInstances(&req)
+	// 	if err != nil {
+	// 		return fmt.Errorf("Error request spot instance: %s", err)
+	// 	}
+	// 	d.spotInstanceRequestId = *spotInstanceRequest.SpotInstanceRequests[0].SpotInstanceRequestId
 
-		log.Info("Waiting for spot instance...")
-		for i := 0; i < 3; i++ {
-			// AWS eventual consistency means we could not have SpotInstanceRequest ready yet
-			err = d.getClient().WaitUntilSpotInstanceRequestFulfilled(&ec2.DescribeSpotInstanceRequestsInput{
-				SpotInstanceRequestIds: []*string{&d.spotInstanceRequestId},
-			})
-			if err != nil {
-				if awsErr, ok := err.(awserr.Error); ok {
-					if awsErr.Code() == spotInstanceRequestNotFoundCode {
-						time.Sleep(5 * time.Second)
-						continue
-					}
-				}
-				return fmt.Errorf("Error fulfilling spot request: %v", err)
-			}
-			break
-		}
-		log.Infof("Created spot instance request %v", d.spotInstanceRequestId)
-		// resolve instance id
-		for i := 0; i < 3; i++ {
-			// Even though the waiter succeeded, eventual consistency means we could
-			// get a describe output that does not include this information. Try a
-			// few times just in case
-			var resolvedSpotInstance *ec2.DescribeSpotInstanceRequestsOutput
-			resolvedSpotInstance, err = d.getClient().DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{
-				SpotInstanceRequestIds: []*string{&d.spotInstanceRequestId},
-			})
-			if err != nil {
-				// Unexpected; no need to retry
-				return fmt.Errorf("Error describing previously made spot instance request: %v", err)
-			}
-			maybeInstanceId := resolvedSpotInstance.SpotInstanceRequests[0].InstanceId
-			if maybeInstanceId != nil {
-				var instances *ec2.DescribeInstancesOutput
-				instances, err = d.getClient().DescribeInstances(&ec2.DescribeInstancesInput{
-					InstanceIds: []*string{maybeInstanceId},
-				})
-				if err != nil {
-					// Retry if we get an id from spot instance but EC2 doesn't recognize it yet; see above, eventual consistency possible
-					continue
-				}
-				instance = instances.Reservations[0].Instances[0]
-				err = nil
-				break
-			}
-			time.Sleep(5 * time.Second)
-		}
+	// 	log.Info("Waiting for spot instance...")
+	// 	for i := 0; i < 3; i++ {
+	// 		// AWS eventual consistency means we could not have SpotInstanceRequest ready yet
+	// 		err = d.getClient().WaitUntilSpotInstanceRequestFulfilled(&ec2.DescribeSpotInstanceRequestsInput{
+	// 			SpotInstanceRequestIds: []*string{&d.spotInstanceRequestId},
+	// 		})
+	// 		if err != nil {
+	// 			if awsErr, ok := err.(awserr.Error); ok {
+	// 				if awsErr.Code() == spotInstanceRequestNotFoundCode {
+	// 					time.Sleep(5 * time.Second)
+	// 					continue
+	// 				}
+	// 			}
+	// 			return fmt.Errorf("Error fulfilling spot request: %v", err)
+	// 		}
+	// 		break
+	// 	}
+	// 	log.Infof("Created spot instance request %v", d.spotInstanceRequestId)
+	// 	// resolve instance id
+	// 	for i := 0; i < 3; i++ {
+	// 		// Even though the waiter succeeded, eventual consistency means we could
+	// 		// get a describe output that does not include this information. Try a
+	// 		// few times just in case
+	// 		var resolvedSpotInstance *ec2.DescribeSpotInstanceRequestsOutput
+	// 		resolvedSpotInstance, err = d.getClient().DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{
+	// 			SpotInstanceRequestIds: []*string{&d.spotInstanceRequestId},
+	// 		})
+	// 		if err != nil {
+	// 			// Unexpected; no need to retry
+	// 			return fmt.Errorf("Error describing previously made spot instance request: %v", err)
+	// 		}
+	// 		maybeInstanceId := resolvedSpotInstance.SpotInstanceRequests[0].InstanceId
+	// 		if maybeInstanceId != nil {
+	// 			var instances *ec2.DescribeInstancesOutput
+	// 			instances, err = d.getClient().DescribeInstances(&ec2.DescribeInstancesInput{
+	// 				InstanceIds: []*string{maybeInstanceId},
+	// 			})
+	// 			if err != nil {
+	// 				// Retry if we get an id from spot instance but EC2 doesn't recognize it yet; see above, eventual consistency possible
+	// 				continue
+	// 			}
+	// 			instance = instances.Reservations[0].Instances[0]
+	// 			err = nil
+	// 			break
+	// 		}
+	// 		time.Sleep(5 * time.Second)
+	// 	}
 
-		if err != nil {
-			return fmt.Errorf("Error resolving spot instance to real instance: %v", err)
-		}
-	} else {
+	// 	if err != nil {
+	// 		return fmt.Errorf("Error resolving spot instance to real instance: %v", err)
+	// 	}
+	// } else {
 		inst, err := d.getClient().RunInstances(&ec2.RunInstancesInput{
 			ImageId:  &d.AMI,
 			MinCount: aws.Int64(1),
@@ -793,7 +793,7 @@ func (d *Driver) innerCreate() error {
 			return fmt.Errorf("Error launching instance: %s", err)
 		}
 		instance = inst.Instances[0]
-	}
+	// }
 
 	d.InstanceId = *instance.InstanceId
 
