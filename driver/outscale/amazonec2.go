@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	driverName                  = "outscale"
+	driverName                  = "outscale-cloud"
 	ipRange                     = "0.0.0.0/0"
 	machineSecurityGroupName    = "rancher-nodes"
 	machineTag                  = "rancher-nodes"
@@ -39,7 +39,7 @@ const (
 	defaultInstanceType         = "m4.2xlarge"
 	defaultRootSize             = 16
 	defaultVolumeType           = "gp2"
-	defaultZone                 = "a"
+	defaultZone                 = "us-east-2a"
 	defaultSecurityGroup        = machineSecurityGroupName
 	defaultSSHUser              = "outscale"
 	//defaultSpotPrice            = 0.5

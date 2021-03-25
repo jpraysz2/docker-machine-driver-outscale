@@ -220,7 +220,7 @@ func TestGetRegionZoneForDefaultEndpoint(t *testing.T) {
 		Data: map[string]interface{}{
 			"name":            "test",
 			"outscale-region": "us-east-2",
-			"outscale-zone":   "a",
+			"outscale-zone":   "us-east-2a",
 		},
 	}
 
@@ -274,7 +274,7 @@ func TestAwsCredentialsAreRequired(t *testing.T) {
 		Data: map[string]interface{}{
 			"name":             "test",
 			"outscale-region": "us-east-2",
-			"outscale-zone":   "a",
+			"outscale-zone":   "us-east-2a",
 		},
 	}
 
@@ -289,7 +289,7 @@ func TestValidAwsCredentialsAreAccepted(t *testing.T) {
 		Data: map[string]interface{}{
 			"name":             "test",
 			"outscale-region": "us-east-2",
-			"outscale-zone":   "a",
+			"outscale-zone":   "us-east-2a",
 		},
 	}
 
@@ -305,7 +305,7 @@ func TestEndpointIsMandatoryWhenSSLDisabled(t *testing.T) {
 			"name":                         "test",
 			"outscale-access-key":         "foobar",
 			"outscale-region":             "us-east-2",
-			"outscale-zone":               "a",
+			"outscale-zone":               "us-east-2a",
 			"amazonec2-insecure-transport": true,
 		},
 	}
