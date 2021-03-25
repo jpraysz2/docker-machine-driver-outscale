@@ -238,7 +238,7 @@ func TestGetRegionZoneForCustomEndpoint(t *testing.T) {
 	options := &commandstest.FakeFlagger{
 		Data: map[string]interface{}{
 			"name":               "test",
-			"amazonec2-endpoint": "https://someurl",
+			"outscale-endpoint": "https://someurl",
 			"outscale-region":   "custom-endpoint",
 			"outscale-zone":     "custom-zone",
 		},

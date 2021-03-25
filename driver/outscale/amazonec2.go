@@ -42,8 +42,8 @@ const (
 	defaultZone                 = "a"
 	defaultSecurityGroup        = machineSecurityGroupName
 	defaultSSHUser              = "outscale"
-	defaultSpotPrice            = ""
-	defaultBlockDurationMinutes = 0
+	//defaultSpotPrice            = 0.5
+	//defaultBlockDurationMinutes = 0
 	charset                     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
@@ -71,7 +71,7 @@ var (
 	errorMissingCredentials              = errors.New("amazonec2 driver requires AWS credentials configured with the --outscale-access-key and --outscale-secret-key options, environment variables, ~/.aws/credentials, or an instance role")
 	errorNoVPCIdFound                    = errors.New("amazonec2 driver requires either the --outscale-subnet-id or --outscale-vpc-id option or an AWS Account with a default vpc-id")
 	errorNoSubnetsFound                  = errors.New("The desired subnet could not be located in this region. Is '--outscale-subnet-id' or AWS_SUBNET_ID configured correctly?")
-	errorDisableSSLWithoutCustomEndpoint = errors.New("using --amazonec2-insecure-transport also requires --amazonec2-endpoint")
+	errorDisableSSLWithoutCustomEndpoint = errors.New("using --amazonec2-insecure-transport also requires --outscale-endpoint")
 	errorReadingUserData                 = errors.New("unable to read --amazonec2-userdata file")
 	errorInvalidValueForHTTPToken        = errors.New("httpToken must be either optional or required")
 	errorInvalidValueForHTTPEndpoint     = errors.New("httpEndpoint must be either enabled or disabled")
@@ -165,7 +165,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			Name:   "outscale-ami",
 			Usage:  "Outscale machine image",
-			value:  defaultAmiId
+			Value:  defaultAmiId,
 			EnvVar: "AWS_AMI",
 		},
 		mcnflag.StringFlag{
@@ -196,7 +196,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "AWS_SECURITY_GROUP_READONLY",
 		},
 		mcnflag.StringSliceFlag{
-			Name:   "amazonec2-security-group",
+			Name:   "outscale-security-group",
 			Usage:  "AWS VPC security group",
 			Value:  []string{defaultSecurityGroup},
 			EnvVar: "AWS_SECURITY_GROUP",
@@ -251,12 +251,10 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			Name:  "amazonec2-spot-price",
 			Usage: "AWS spot instance bid price (in dollar)",
-			Value: defaultSpotPrice,
 		},
 		mcnflag.IntFlag{
 			Name:  "amazonec2-block-duration-minutes",
 			Usage: "AWS spot instance duration in minutes (60, 120, 180, 240, 300, or 360)",
-			Value: defaultBlockDurationMinutes,
 		},
 		mcnflag.BoolFlag{
 			Name:  "amazonec2-private-address-only",
@@ -290,9 +288,9 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Value: 5,
 		},
 		mcnflag.StringFlag{
-			Name:   "amazonec2-endpoint",
+			Name:   "outscale-endpoint",
 			Usage:  "Optional endpoint URL (hostname only or fully qualified URI)",
-			Value:  "",
+			Value:  "https://fcu.us-east-2.outscale.com",
 			EnvVar: "AWS_ENDPOINT",
 		},
 		mcnflag.BoolFlag{
@@ -338,8 +336,8 @@ func NewDriver(hostName, storePath string) *Driver {
 		RootSize:             defaultRootSize,
 		Zone:                 defaultZone,
 		SecurityGroupNames:   []string{defaultSecurityGroup},
-		SpotPrice:            defaultSpotPrice,
-		BlockDurationMinutes: defaultBlockDurationMinutes,
+		//SpotPrice:            defaultSpotPrice,
+		//BlockDurationMinutes: defaultBlockDurationMinutes,
 		BaseDriver: &drivers.BaseDriver{
 			SSHUser:     defaultSSHUser,
 			MachineName: hostName,
@@ -377,7 +375,7 @@ func (d *Driver) getClient() Ec2Client {
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
-	d.Endpoint = flags.String("amazonec2-endpoint")
+	d.Endpoint = flags.String("outscale-endpoint")
 
 	region, err := validateAwsRegion(flags.String("outscale-region"))
 	if err != nil && d.Endpoint == "" {
@@ -400,7 +398,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.InstanceType = flags.String("outscale-instance-type")
 	d.VpcId = flags.String("outscale-vpc-id")
 	d.SubnetId = flags.String("outscale-subnet-id")
-	d.SecurityGroupNames = flags.StringSlice("amazonec2-security-group")
+	d.SecurityGroupNames = flags.StringSlice("outscale-security-group")
 	d.SecurityGroupReadOnly = flags.Bool("amazonec2-security-group-readonly")
 	d.Tags = flags.String("amazonec2-tags")
 	zone := flags.String("outscale-zone")
