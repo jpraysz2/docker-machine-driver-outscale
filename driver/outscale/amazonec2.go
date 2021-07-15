@@ -34,22 +34,19 @@ const (
 	ipRange                     = "0.0.0.0/0"
 	machineSecurityGroupName    = "rancher-nodes"
 	machineTag                  = "rancher-nodes"
-	defaultAmiId                = "ami-e90bc65c"
+	defaultAmiId                = "ami-e90bc65c" //CentOS-8-2021.02.04-0 
 	defaultRegion               = "us-east-2"
 	defaultInstanceType         = "m4.2xlarge"
-	defaultRootSize             = 16
+	defaultRootSize             = 30
 	defaultVolumeType           = "gp2"
 	defaultZone                 = "us-east-2a"
 	defaultSecurityGroup        = machineSecurityGroupName
 	defaultSSHUser              = "outscale"
-	//defaultSpotPrice            = 0.5
-	//defaultBlockDurationMinutes = 0
 	charset                     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 const (
 	keypairNotFoundCode             = "InvalidKeyPair.NotFound"
-	//spotInstanceRequestNotFoundCode = "InvalidSpotInstanceRequestID.NotFound"
 )
 
 var (
@@ -115,9 +112,6 @@ type Driver struct {
 	SubnetId                string
 	Zone                    string
 	keyPath                 string
-	RequestSpotInstance     bool
-	//SpotPrice               string
-	//BlockDurationMinutes    int64
 	PrivateIPOnly           bool
 	UsePrivateIP            bool
 	UseEbsOptimizedInstance bool
@@ -128,7 +122,6 @@ type Driver struct {
 	DisableSSL              bool
 	UserDataFile            string
 	EncryptEbsVolume        bool
-	spotInstanceRequestId   string
 	kmsKeyId                *string
 	bdmList                 []*ec2.BlockDeviceMapping
 	// Metadata Options
@@ -244,18 +237,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Value:  defaultSSHUser,
 			EnvVar: "AWS_SSH_USER",
 		},
-		// mcnflag.BoolFlag{
-		// 	Name:  "amazonec2-request-spot-instance",
-		// 	Usage: "Set this flag to request spot instance",
-		// },
-		// mcnflag.StringFlag{
-		// 	Name:  "amazonec2-spot-price",
-		// 	Usage: "AWS spot instance bid price (in dollar)",
-		// },
-		// mcnflag.IntFlag{
-		// 	Name:  "amazonec2-block-duration-minutes",
-		// 	Usage: "AWS spot instance duration in minutes (60, 120, 180, 240, 300, or 360)",
-		// },
 		mcnflag.BoolFlag{
 			Name:  "outscale-private-address-only",
 			Usage: "Only use a private IP address",
@@ -282,11 +263,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		// 	Usage:  "AWS keypair to use; requires --amazonec2-ssh-keypath",
 		// 	EnvVar: "AWS_KEYPAIR_NAME",
 		// },
-		// mcnflag.IntFlag{
-		// 	Name:  "amazonec2-retries",
-		// 	Usage: "Set retry count for recoverable failures (use -1 to disable)",
-		// 	Value: 5,
-		// },
+		mcnflag.IntFlag{
+			Name:  "outscale-retries",
+		 	Usage: "Set retry count for recoverable failures (use -1 to disable)",
+		 	Value: 5,
+		 },
 		mcnflag.StringFlag{
 			Name:   "outscale-endpoint",
 			Usage:  "Optional endpoint URL (hostname only or fully qualified URI)",
@@ -336,8 +317,6 @@ func NewDriver(hostName, storePath string) *Driver {
 		RootSize:             defaultRootSize,
 		Zone:                 defaultZone,
 		SecurityGroupNames:   []string{defaultSecurityGroup},
-		//SpotPrice:            defaultSpotPrice,
-		//BlockDurationMinutes: defaultBlockDurationMinutes,
 		BaseDriver: &drivers.BaseDriver{
 			SSHUser:     defaultSSHUser,
 			MachineName: hostName,
@@ -392,9 +371,6 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	//d.SessionToken = flags.String("amazonec2-session-token")
 	d.Region = region
 	d.AMI = image
-	//d.RequestSpotInstance = flags.Bool("amazonec2-request-spot-instance")
-	//d.SpotPrice = flags.String("amazonec2-spot-price")
-	//d.BlockDurationMinutes = int64(flags.Int("amazonec2-block-duration-minutes"))
 	d.InstanceType = flags.String("outscale-instance-type")
 	d.VpcId = flags.String("outscale-vpc-id")
 	d.SubnetId = flags.String("outscale-subnet-id")
@@ -403,21 +379,20 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.Tags = flags.String("outscale-tags")
 	zone := flags.String("outscale-zone")
 	d.Zone = zone[:]
-	d.DeviceName = flags.String("outscakeamazonec2-device-name")
+	d.DeviceName = flags.String("outscale-device-name")
 	d.RootSize = int64(flags.Int("outscale-root-size"))
 	d.VolumeType = flags.String("outscale-volume-type")
-	d.IamInstanceProfile = flags.String("outscale-amazonec2-iam-instance-profile")
+	d.IamInstanceProfile = flags.String("outscale-iam-instance-profile")
 	d.SSHUser = flags.String("outscale-ssh-user")
 	d.SSHPort = 22
 	d.PrivateIPOnly = flags.Bool("outscale-private-address-only")
 	d.UsePrivateIP = flags.Bool("outscale-use-private-address")
-	//d.Monitoring = flags.Bool("amazonec2-monitoring")
 	d.UseEbsOptimizedInstance = flags.Bool("outscale-use-ebs-optimized-instance")
 	//d.SSHPrivateKeyPath = flags.String("amazonec2-ssh-keypath")
 	//d.KeyName = flags.String("amazonec2-keypair-name")
 	//d.ExistingKey = flags.String("amazonec2-keypair-name") != ""
 	d.SetSwarmConfigFromFlags(flags)
-	//d.RetryCount = flags.Int("amazonec2-retries")
+	d.RetryCount = flags.Int("outscale-retries")
 	//d.OpenPorts = flags.StringSlice("amazonec2-open-port")
 	d.UserDataFile = flags.String("outscale-userdata")
 	//d.EncryptEbsVolume = flags.Bool("amazonec2-encrypt-ebs-volume")
@@ -686,90 +661,6 @@ func (d *Driver) innerCreate() error {
 	log.Debugf("launching instance in subnet %s", d.SubnetId)
 
 	var instance *ec2.Instance
-
-	// if d.RequestSpotInstance {
-	// 	req := ec2.RequestSpotInstancesInput{
-	// 		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
-	// 			ImageId: &d.AMI,
-	// 			Placement: &ec2.SpotPlacement{
-	// 				AvailabilityZone: &regionZone,
-	// 			},
-	// 			KeyName:           &d.KeyName,
-	// 			InstanceType:      &d.InstanceType,
-	// 			NetworkInterfaces: netSpecs,
-	// 			Monitoring:        &ec2.RunInstancesMonitoringEnabled{Enabled: aws.Bool(d.Monitoring)},
-	// 			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-	// 				Name: &d.IamInstanceProfile,
-	// 			},
-	// 			EbsOptimized:        &d.UseEbsOptimizedInstance,
-	// 			BlockDeviceMappings: bdmList,
-	// 			UserData:            &userdata,
-	// 		},
-	// 		InstanceCount: aws.Int64(1),
-	// 		SpotPrice:     &d.SpotPrice,
-	// 	}
-	// 	if d.BlockDurationMinutes != 0 {
-	// 		req.BlockDurationMinutes = &d.BlockDurationMinutes
-	// 	}
-
-	// 	spotInstanceRequest, err := d.getClient().RequestSpotInstances(&req)
-	// 	if err != nil {
-	// 		return fmt.Errorf("Error request spot instance: %s", err)
-	// 	}
-	// 	d.spotInstanceRequestId = *spotInstanceRequest.SpotInstanceRequests[0].SpotInstanceRequestId
-
-	// 	log.Info("Waiting for spot instance...")
-	// 	for i := 0; i < 3; i++ {
-	// 		// AWS eventual consistency means we could not have SpotInstanceRequest ready yet
-	// 		err = d.getClient().WaitUntilSpotInstanceRequestFulfilled(&ec2.DescribeSpotInstanceRequestsInput{
-	// 			SpotInstanceRequestIds: []*string{&d.spotInstanceRequestId},
-	// 		})
-	// 		if err != nil {
-	// 			if awsErr, ok := err.(awserr.Error); ok {
-	// 				if awsErr.Code() == spotInstanceRequestNotFoundCode {
-	// 					time.Sleep(5 * time.Second)
-	// 					continue
-	// 				}
-	// 			}
-	// 			return fmt.Errorf("Error fulfilling spot request: %v", err)
-	// 		}
-	// 		break
-	// 	}
-	// 	log.Infof("Created spot instance request %v", d.spotInstanceRequestId)
-	// 	// resolve instance id
-	// 	for i := 0; i < 3; i++ {
-	// 		// Even though the waiter succeeded, eventual consistency means we could
-	// 		// get a describe output that does not include this information. Try a
-	// 		// few times just in case
-	// 		var resolvedSpotInstance *ec2.DescribeSpotInstanceRequestsOutput
-	// 		resolvedSpotInstance, err = d.getClient().DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{
-	// 			SpotInstanceRequestIds: []*string{&d.spotInstanceRequestId},
-	// 		})
-	// 		if err != nil {
-	// 			// Unexpected; no need to retry
-	// 			return fmt.Errorf("Error describing previously made spot instance request: %v", err)
-	// 		}
-	// 		maybeInstanceId := resolvedSpotInstance.SpotInstanceRequests[0].InstanceId
-	// 		if maybeInstanceId != nil {
-	// 			var instances *ec2.DescribeInstancesOutput
-	// 			instances, err = d.getClient().DescribeInstances(&ec2.DescribeInstancesInput{
-	// 				InstanceIds: []*string{maybeInstanceId},
-	// 			})
-	// 			if err != nil {
-	// 				// Retry if we get an id from spot instance but EC2 doesn't recognize it yet; see above, eventual consistency possible
-	// 				continue
-	// 			}
-	// 			instance = instances.Reservations[0].Instances[0]
-	// 			err = nil
-	// 			break
-	// 		}
-	// 		time.Sleep(5 * time.Second)
-	// 	}
-
-	// 	if err != nil {
-	// 		return fmt.Errorf("Error resolving spot instance to real instance: %v", err)
-	// 	}
-	// } else {
 		inst, err := d.getClient().RunInstances(&ec2.RunInstancesInput{
 			ImageId:  &d.AMI,
 			MinCount: aws.Int64(1),
@@ -931,7 +822,6 @@ func (d *Driver) GetState() (state.State, error) {
 }
 
 func (d *Driver) GetSSHHostname() (string, error) {
-	// TODO: use @nathanleclaire retry func here (ehazlett)
 	return d.GetIP()
 }
 
@@ -986,14 +876,6 @@ func (d *Driver) Remove() error {
 		multierr.Errs = append(multierr.Errs, err)
 	}
 
-	// In case of failure waiting for a SpotInstance, we must cancel the unfulfilled request, otherwise an instance may be created later.
-	// If the instance was created, terminating it will be enough for canceling the SpotInstanceRequest
-	if d.RequestSpotInstance && d.spotInstanceRequestId != "" {
-		if err := d.cancelSpotInstanceRequest(); err != nil {
-			multierr.Errs = append(multierr.Errs, err)
-		}
-	}
-
 	if !d.ExistingKey {
 		if err := d.deleteKeyPair(); err != nil {
 			multierr.Errs = append(multierr.Errs, err)
@@ -1005,15 +887,6 @@ func (d *Driver) Remove() error {
 	}
 
 	return multierr
-}
-
-func (d *Driver) cancelSpotInstanceRequest() error {
-	// NB: Canceling a Spot instance request does not terminate running Spot instances associated with the request
-	_, err := d.getClient().CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
-		SpotInstanceRequestIds: []*string{&d.spotInstanceRequestId},
-	})
-
-	return err
 }
 
 func (d *Driver) getInstance() (*ec2.Instance, error) {
