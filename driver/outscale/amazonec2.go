@@ -64,11 +64,10 @@ var (
 	kubeProxyPorts                       = []int64{10256, 10256}
 	nodePorts                            = []int64{30000, 32767}
 	calicoPort                           = 179
-	//errorNoPrivateSSHKey                 = errors.New("using --amazonec2-keypair-name also requires --amazonec2-ssh-keypath")
-	errorMissingCredentials              = errors.New("outscale driver requires AWS credentials configured with the --outscale-access-key and --outscale-secret-key options, environment variables, ~/.aws/credentials, or an instance role")
-	errorNoVPCIdFound                    = errors.New("outscale driver requires either the --outscale-subnet-id or --outscale-vpc-id option or an AWS Account with a default vpc-id")
-	errorNoSubnetsFound                  = errors.New("The desired subnet could not be located in this region. Is '--outscale-subnet-id' or AWS_SUBNET_ID configured correctly?")
-	//errorDisableSSLWithoutCustomEndpoint = errors.New("using --amazonec2-insecure-transport also requires --outscale-endpoint")
+	errorNoPrivateSSHKey                 = errors.New("using --outscale-keypair-name also requires --outscale-ssh-keypath")
+	errorMissingCredentials              = errors.New("Outscale driver requires outscale credentials configured with the --outscale-access-key and --outscale-secret-key options or environment variables")
+	errorNoVPCIdFound                    = errors.New("Outscale driver requires the --outscale-vpc-id option")
+	errorNoSubnetsFound                  = errors.New("The desired subnet could not be located in this region. Is '--outscale-subnet-id' or OS_SUBNET_ID configured correctly?")
 	errorReadingUserData                 = errors.New("unable to read --outscale-userdata file")
 	errorInvalidValueForHTTPToken        = errors.New("httpToken must be either optional or required")
 	errorInvalidValueForHTTPEndpoint     = errors.New("httpEndpoint must be either enabled or disabled")
@@ -92,15 +91,12 @@ type Driver struct {
 	InstanceType     string
 	PrivateIPAddress string
 
-	// NB: SecurityGroupId expanded from single value to slice on 26 Feb 2016 - we maintain both for host storage backwards compatibility.
 	SecurityGroupId  string
 	SecurityGroupIds []string
 
-	// NB: SecurityGroupName expanded from single value to slice on 26 Feb 2016 - we maintain both for host storage backwards compatibility.
 	SecurityGroupName  string
 	SecurityGroupNames []string
 
-	SecurityGroupReadOnly   bool
 	OpenPorts               []string
 	Tags                    string
 	ReservationId           string
@@ -115,14 +111,10 @@ type Driver struct {
 	PrivateIPOnly           bool
 	UsePrivateIP            bool
 	UseEbsOptimizedInstance bool
-	Monitoring              bool
 	SSHPrivateKeyPath       string
 	RetryCount              int
 	Endpoint                string
-	DisableSSL              bool
 	UserDataFile            string
-	EncryptEbsVolume        bool
-	kmsKeyId                *string
 	bdmList                 []*ec2.BlockDeviceMapping
 	// Metadata Options
 	HttpEndpoint string
@@ -143,99 +135,89 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			Name:   "outscale-access-key",
 			Usage:  "Outscale Access Key",
-			EnvVar: "AWS_ACCESS_KEY_ID",
+			EnvVar: "OS_ACCESS_KEY_ID",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-secret-key",
 			Usage:  "Outscale Secret Key",
-			EnvVar: "AWS_SECRET_ACCESS_KEY",
+			EnvVar: "OS_SECRET_ACCESS_KEY",
 		},
-		// mcnflag.StringFlag{
-		// 	Name:   "amazonec2-session-token",
-		// 	Usage:  "AWS Session Token",
-		// 	EnvVar: "AWS_SESSION_TOKEN",
-		// },
 		mcnflag.StringFlag{
 			Name:   "outscale-ami",
 			Usage:  "Outscale machine image",
 			Value:  defaultAmiId,
-			EnvVar: "AWS_AMI",
+			EnvVar: "OS_AMI",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-region",
 			Usage:  "Outscale region",
 			Value:  defaultRegion,
-			EnvVar: "AWS_DEFAULT_REGION",
+			EnvVar: "OS_DEFAULT_REGION",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-vpc-id",
 			Usage:  "Outscale VPC id",
-			EnvVar: "AWS_VPC_ID",
+			EnvVar: "OS_VPC_ID",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-zone",
 			Usage:  "Outscale zone for instance (i.e. a,b,c,d,e)",
 			Value:  defaultZone,
-			EnvVar: "AWS_ZONE",
+			EnvVar: "OS_ZONE",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-subnet-id",
 			Usage:  "Outscale VPC subnet id",
-			EnvVar: "AWS_SUBNET_ID",
+			EnvVar: "OS_SUBNET_ID",
 		},
-		// mcnflag.BoolFlag{
-		// 	Name:   "amazonec2-security-group-readonly",
-		// 	Usage:  "Skip adding default rules to security groups",
-		// 	EnvVar: "AWS_SECURITY_GROUP_READONLY",
-		// },
 		mcnflag.StringSliceFlag{
 			Name:   "outscale-security-group",
 			Usage:  "Outscale VPC security group",
 			Value:  []string{defaultSecurityGroup},
-			EnvVar: "AWS_SECURITY_GROUP",
+			EnvVar: "OS_SECURITY_GROUP",
 		},
-		// mcnflag.StringSliceFlag{
-		// 	Name:  "amazonec2-open-port",
-		// 	Usage: "Make the specified port number accessible from the Internet",
-		// },
+		mcnflag.StringSliceFlag{
+			Name:  "outscale-open-port",
+			Usage: "Make the specified port number accessible from the Internet",
+		},
 		mcnflag.StringFlag{
 			Name:   "outscale-tags",
 			Usage:  "Outscale Tags (e.g. key1,value1,key2,value2)",
-			EnvVar: "AWS_TAGS",
+			EnvVar: "OS_TAGS",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-instance-type",
 			Usage:  "Outscale instance type",
 			Value:  defaultInstanceType,
-			EnvVar: "AWS_INSTANCE_TYPE",
+			EnvVar: "OS_INSTANCE_TYPE",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-device-name",
 			Usage:  "Outscale root device name",
-			EnvVar: "AWS_DEVICE_NAME",
+			EnvVar: "OS_DEVICE_NAME",
 		},
 		mcnflag.IntFlag{
 			Name:   "outscale-root-size",
 			Usage:  "Outscale root disk size (in GB)",
 			Value:  defaultRootSize,
-			EnvVar: "AWS_ROOT_SIZE",
+			EnvVar: "OS_ROOT_SIZE",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-volume-type",
 			Usage:  "Outscale volume type",
 			Value:  defaultVolumeType,
-			EnvVar: "AWS_VOLUME_TYPE",
+			EnvVar: "OS_VOLUME_TYPE",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-iam-instance-profile",
 			Usage:  "Outscale IAM Instance Profile",
-			EnvVar: "AWS_INSTANCE_PROFILE",
+			EnvVar: "OS_INSTANCE_PROFILE",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-ssh-user",
 			Usage:  "Set the name of the ssh user",
 			Value:  defaultSSHUser,
-			EnvVar: "AWS_SSH_USER",
+			EnvVar: "OS_SSH_USER",
 		},
 		mcnflag.BoolFlag{
 			Name:  "outscale-private-address-only",
@@ -245,24 +227,20 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:  "outscale-use-private-address",
 			Usage: "Force the usage of private IP address",
 		},
-		// mcnflag.BoolFlag{
-		// 	Name:  "amazonec2-monitoring",
-		// 	Usage: "Set this flag to enable CloudWatch monitoring",
-		// },
 		mcnflag.BoolFlag{
 			Name:  "outscale-use-ebs-optimized-instance",
 			Usage: "Create an EBS optimized instance",
 		},
-		// mcnflag.StringFlag{
-		// 	Name:   "amazonec2-ssh-keypath",
-		// 	Usage:  "SSH Key for Instance",
-		// 	EnvVar: "AWS_SSH_KEYPATH",
-		// },
-		// mcnflag.StringFlag{
-		// 	Name:   "amazonec2-keypair-name",
-		// 	Usage:  "AWS keypair to use; requires --amazonec2-ssh-keypath",
-		// 	EnvVar: "AWS_KEYPAIR_NAME",
-		// },
+		mcnflag.StringFlag{
+			Name:   "outscale-ssh-keypath",
+			Usage:  "SSH Key for Instance",
+			EnvVar: "OS_SSH_KEYPATH",
+		},
+		mcnflag.StringFlag{
+			Name:   "outscale-keypair-name",
+			Usage:  "Keypair to use; requires --outscale-ssh-keypath",
+			EnvVar: "OS_KEYPAIR_NAME",
+		},
 		mcnflag.IntFlag{
 			Name:  "outscale-retries",
 		 	Usage: "Set retry count for recoverable failures (use -1 to disable)",
@@ -272,38 +250,13 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "outscale-endpoint",
 			Usage:  "Optional endpoint URL (hostname only or fully qualified URI)",
 			Value:  "https://fcu.us-east-2.outscale.com",
-			EnvVar: "AWS_ENDPOINT",
+			EnvVar: "OS_ENDPOINT",
 		},
-		// mcnflag.BoolFlag{
-		// 	Name:   "amazonec2-insecure-transport",
-		// 	Usage:  "Disable SSL when sending requests",
-		// 	EnvVar: "AWS_INSECURE_TRANSPORT",
-		// },
 		mcnflag.StringFlag{
 			Name:   "outscale-userdata",
 			Usage:  "path to file with cloud-init user data",
-			EnvVar: "AWS_USERDATA",
+			EnvVar: "OS_USERDATA",
 		},
-		// mcnflag.BoolFlag{
-		// 	Name:   "amazonec2-encrypt-ebs-volume",
-		// 	Usage:  "Encrypt the EBS volume using the AWS Managed CMK",
-		// 	EnvVar: "AWS_ENCRYPT_EBS_VOLUME",
-		// },
-		// mcnflag.StringFlag{
-		// 	Name:   "amazonec2-kms-key",
-		// 	Usage:  "Custom KMS key using the AWS Managed CMK",
-		// 	EnvVar: "AWS_KMS_KEY",
-		// },
-		// mcnflag.StringFlag{
-		// 	Name:   "amazonec2-http-endpoint",
-		// 	Usage:  "Enables or disables the HTTP metadata endpoint on your instances",
-		// 	EnvVar: "AWS_HTTP_ENDPOINT",
-		// },
-		// mcnflag.StringFlag{
-		// 	Name:   "amazonec2-http-tokens",
-		// 	Usage:  "The state of token usage for your instance metadata requests.",
-		// 	EnvVar: "AWS_HTTP_TOKENS",
-		// },
 	}
 }
 
@@ -340,7 +293,6 @@ func (d *Driver) buildClient() Ec2Client {
 	config = config.WithMaxRetries(d.RetryCount)
 	if d.Endpoint != "" {
 		config = config.WithEndpoint(d.Endpoint)
-		config = config.WithDisableSSL(d.DisableSSL)
 	}
 	return ec2.New(session.New(config))
 }
@@ -368,14 +320,12 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 
 	d.AccessKey = flags.String("outscale-access-key")
 	d.SecretKey = flags.String("outscale-secret-key")
-	//d.SessionToken = flags.String("amazonec2-session-token")
 	d.Region = region
 	d.AMI = image
 	d.InstanceType = flags.String("outscale-instance-type")
 	d.VpcId = flags.String("outscale-vpc-id")
 	d.SubnetId = flags.String("outscale-subnet-id")
 	d.SecurityGroupNames = flags.StringSlice("outscale-security-group")
-	//d.SecurityGroupReadOnly = flags.Bool("amazonec2-security-group-readonly")
 	d.Tags = flags.String("outscale-tags")
 	zone := flags.String("outscale-zone")
 	d.Zone = zone[:]
@@ -388,45 +338,17 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.PrivateIPOnly = flags.Bool("outscale-private-address-only")
 	d.UsePrivateIP = flags.Bool("outscale-use-private-address")
 	d.UseEbsOptimizedInstance = flags.Bool("outscale-use-ebs-optimized-instance")
-	//d.SSHPrivateKeyPath = flags.String("amazonec2-ssh-keypath")
-	//d.KeyName = flags.String("amazonec2-keypair-name")
-	//d.ExistingKey = flags.String("amazonec2-keypair-name") != ""
+	d.SSHPrivateKeyPath = flags.String("outscale-ssh-keypath")
+	d.KeyName = flags.String("outscale-keypair-name")
+	d.ExistingKey = flags.String("outscale-keypair-name") != ""
 	d.SetSwarmConfigFromFlags(flags)
 	d.RetryCount = flags.Int("outscale-retries")
-	//d.OpenPorts = flags.StringSlice("amazonec2-open-port")
+	d.OpenPorts = flags.StringSlice("outscale-open-port")
 	d.UserDataFile = flags.String("outscale-userdata")
-	//d.EncryptEbsVolume = flags.Bool("amazonec2-encrypt-ebs-volume")
 
-	// httpEndpoint := flags.String("amazonec2-http-endpoint")
-	// if httpEndpoint != "" {
-	// 	if httpEndpoint != "disabled" && httpEndpoint != "enabled" {
-	// 		return errorInvalidValueForHTTPEndpoint
-	// 	}
-	// 	d.HttpEndpoint = httpEndpoint
-	// }
-
-	// httpTokens := flags.String("amazonec2-http-tokens")
-	// if httpTokens != "" {
-	// 	if httpTokens != "optional" && httpTokens != "required" {
-	// 		return errorInvalidValueForHTTPToken
-	// 	}
-	// 	d.HttpTokens = httpTokens
-	// }
-
-	// kmskeyid := flags.String("amazonec2-kms-key")
-	// if kmskeyid != "" {
-	// 	d.kmsKeyId = aws.String(kmskeyid)
-	// }
-
-	//d.DisableSSL = flags.Bool("amazonec2-insecure-transport")
-
-	// if d.DisableSSL && d.Endpoint == "" {
-	// 	return errorDisableSSLWithoutCustomEndpoint
-	// }
-
-	// if d.KeyName != "" && d.SSHPrivateKeyPath == "" {
-	// 	return errorNoPrivateSSHKey
-	// }
+	if d.KeyName != "" && d.SSHPrivateKeyPath == "" {
+	 	return errorNoPrivateSSHKey
+	}
 
 	_, err = d.awsCredentialsFactory().Credentials().Get()
 	if err != nil {
@@ -671,7 +593,6 @@ func (d *Driver) innerCreate() error {
 			KeyName:           &d.KeyName,
 			InstanceType:      &d.InstanceType,
 			NetworkInterfaces: netSpecs,
-			Monitoring:        &ec2.RunInstancesMonitoringEnabled{Enabled: aws.Bool(d.Monitoring)},
 			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 				Name: &d.IamInstanceProfile,
 			},
@@ -1173,10 +1094,6 @@ func (d *Driver) configureSecurityGroups(groupNames []string) error {
 }
 
 func (d *Driver) configureSecurityGroupPermissions(group *ec2.SecurityGroup) ([]*ec2.IpPermission, error) {
-	if d.SecurityGroupReadOnly {
-		log.Debug("Skipping permission configuration on security groups")
-		return nil, nil
-	}
 	hasPortsInbound := make(map[string]bool)
 	for _, p := range group.IpPermissions {
 		if p.FromPort != nil {
@@ -1450,8 +1367,6 @@ func (d *Driver) updateBDMList() []*ec2.BlockDeviceMapping {
 				bdm.Ebs.VolumeType = aws.String(d.VolumeType)
 			}
 			bdm.Ebs.DeleteOnTermination = aws.Bool(true)
-			bdm.Ebs.KmsKeyId = d.kmsKeyId
-			bdm.Ebs.Encrypted = aws.Bool(d.EncryptEbsVolume)
 			bdmList = append(bdmList, bdm)
 		}
 	}
