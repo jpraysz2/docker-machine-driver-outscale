@@ -69,8 +69,6 @@ var (
 	errorNoVPCIdFound                    = errors.New("Outscale driver requires the --outscale-vpc-id option")
 	errorNoSubnetsFound                  = errors.New("The desired subnet could not be located in this region. Is '--outscale-subnet-id' or OS_SUBNET_ID configured correctly?")
 	errorReadingUserData                 = errors.New("unable to read --outscale-userdata file")
-	errorInvalidValueForHTTPToken        = errors.New("httpToken must be either optional or required")
-	errorInvalidValueForHTTPEndpoint     = errors.New("httpEndpoint must be either enabled or disabled")
 )
 
 type Driver struct {
@@ -114,6 +112,7 @@ type Driver struct {
 	SSHPrivateKeyPath       string
 	RetryCount              int
 	Endpoint                string
+	DisableSSL              bool
 	UserDataFile            string
 	bdmList                 []*ec2.BlockDeviceMapping
 	// Metadata Options
@@ -141,6 +140,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "outscale-secret-key",
 			Usage:  "Outscale Secret Key",
 			EnvVar: "OS_SECRET_ACCESS_KEY",
+		},
+		mcnflag.StringFlag{
+			Name:   "outscale-session-token",
+			Usage:  "Outscale Session Token",
+			EnvVar: "OS_SESSION_TOKEN",
 		},
 		mcnflag.StringFlag{
 			Name:   "outscale-ami",
@@ -293,6 +297,7 @@ func (d *Driver) buildClient() Ec2Client {
 	config = config.WithMaxRetries(d.RetryCount)
 	if d.Endpoint != "" {
 		config = config.WithEndpoint(d.Endpoint)
+		config = config.WithDisableSSL(d.DisableSSL)
 	}
 	return ec2.New(session.New(config))
 }
@@ -320,6 +325,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 
 	d.AccessKey = flags.String("outscale-access-key")
 	d.SecretKey = flags.String("outscale-secret-key")
+	d.SessionToken = flags.String("outscale-session-token")
 	d.Region = region
 	d.AMI = image
 	d.InstanceType = flags.String("outscale-instance-type")
@@ -345,6 +351,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	d.RetryCount = flags.Int("outscale-retries")
 	d.OpenPorts = flags.StringSlice("outscale-open-port")
 	d.UserDataFile = flags.String("outscale-userdata")
+	d.DisableSSL = false
 
 	if d.KeyName != "" && d.SSHPrivateKeyPath == "" {
 	 	return errorNoPrivateSSHKey
