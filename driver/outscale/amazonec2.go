@@ -36,7 +36,7 @@ const (
 	machineTag                  = "rancher-nodes"
 	defaultAmiId                = "ami-e90bc65c" //CentOS-8-2021.02.04-0 
 	defaultRegion               = "us-east-2"
-	defaultInstanceType         = "m4.2xlarge"
+	defaultInstanceType         = "m5.xlarge"
 	defaultRootSize             = 30
 	defaultVolumeType           = "gp2"
 	defaultZone                 = "us-east-2a"
@@ -943,6 +943,17 @@ func (d *Driver) configureTags(tagGroups string) error {
 	tags := []*ec2.Tag{}
 	tags = append(tags, &ec2.Tag{
 		Key:   aws.String("Name"),
+		Value: &d.MachineName,
+	})
+
+	//Added for outscale, where the instance requires tagging to be used with the cloud provider for outscale 
+	//This assumes the hostname (which populates MachineName) uses the format of clustername-
+	ClusterName := d.MachineName[:strings.IndexByte(d.MachineName, '-')]
+	tags = append(tags, &ec2.Tag{
+		Key:   aws.String("OscK8sClusterID/" + ClusterName),
+		Value: aws.String("owned"),
+	}, &ec2.Tag{
+		Key:   aws.String("OscK8sNodeName"),
 		Value: &d.MachineName,
 	})
 

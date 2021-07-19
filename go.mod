@@ -8,8 +8,11 @@ replace golang.org/x/sys => golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6 
 
 //replace github.com/docker/machine => github.com/rancher/machine v0.13.0
 
+replace github.com/codegangsta/cli => github.com/urfave/cli v1.22.5
+
 require (
 	github.com/aws/aws-sdk-go v1.38.4 // indirect
 	github.com/docker/docker v20.10.5+incompatible // indirect
 	github.com/docker/machine v0.16.2 // indirect
+	github.com/urfave/cli v1.22.5 // indirect
 )
